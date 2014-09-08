@@ -1,63 +1,12 @@
 package main
 
 import (
+	"database/sql"
+	_ "github.com/cznic/ql/driver"
 	"encoding/xml"
 	"fmt"
 	"os"
 )
-
-type Bounds struct {
-	XMLName xml.Name `xml:"bounds"`
-	MinLat string `xml:"minlat,attr"`
-	MaxLat string `xml:"maxlat,attr"`
-	
-	MinLon string `xml:"minlon,attr"`
-	MaxLon string `xml:"maxlon,attr"`
-}
-
-type Tag struct {
-	XMLName xml.Name `xml:"tag"`
-	K string `xml:"k,attr"`
-	V string `xml:"v,attr"`
-}
-
-type Ref struct {
-	XMLName xml.Name `xml:"nd"`
-	Ref string `xml:"ref,attr"`
-}
-
-type Member struct {
-	XMLName xml.Name `xml:"member"`
-	Type string `xml:"type,attr"`
-	Ref string `xml:"ref,attr"`
-	Role string `xml:"role,attr"`
-}
-
-
-type Way struct {
-	XMLName xml.Name `xml:"way"`
-	Id string `xml:"id,attr"`
-	Tags []Tag `xml:"tag"`
-	Refs []Ref `xml:"nd"`
-}
-
-
-type Node struct {
-	XMLName xml.Name `xml:"node"`
-	Id string `xml:"id,attr"`
-	Lat string `xml:"lat,attr"`
-	Lon string `xml:"lon,attr"`
-	Changeset string `xml:"changeset,attr"`
-	Tags []Tag `xml:"tag"`
-}
-
-type Relation struct {
-	XMLName xml.Name `xml:"relation"`
-	Id string `xml:"id,attr"`
-	Changeset string `xml:"changeset,attr"`
-	Tags []Tag `xml:"tag"`
-	Members []Member `xml:"member"`
-}
 
 
 //result of the parse operation
@@ -66,17 +15,7 @@ var nodes []*Node
 var ways []*Way
 var relations []*Relation
 
-func main() {
-	xmlFile, err := os.Open("input.osm")//DISABLE YOUR AV CUZ ITS A FUCKIN BIG FILE AND AVs LIKE TO SCAN FILES BEFORE IT LETS THEM OPEN!!!
-	if err != nil {
-		fmt.Println("Error opening file:", err)
-		return
-	}
-	defer xmlFile.Close()
-	
-	
-	decoder := xml.NewDecoder(xmlFile)
-
+func decode(decoder *xml.Decoder){
 	var inElement string
 	
 	for {
@@ -113,12 +52,31 @@ func main() {
 		}
 
 	}
+}
+
+
+func main() {
+	xmlFile, err := os.Open("input.osm")//DISABLE YOUR AV CUZ ITS A FUCKIN BIG FILE AND AVs LIKE TO SCAN FILES BEFORE IT LETS THEM OPEN!!!
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	defer xmlFile.Close()
 	
-	//for i, way := range relations {
-	//		fmt.Println(i, way)
-	//}
+	db, err := sql.Open("ql", "osmdump.db")
+	if err != nil {
+		fmt.Println("Error opening database:", err)
+		return
+	}
+	initialise_db(db)
+	defer db.Close()
 	
+	
+	decoder := xml.NewDecoder(xmlFile)
+	decode(decoder)
+
 	fmt.Println("Nodes:    ", len(nodes))
+	write_nodes(db, &nodes)
 	fmt.Println("Ways:     ", len(ways))
 	fmt.Println("Relations:", len(relations))
 	

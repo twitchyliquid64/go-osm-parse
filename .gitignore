@@ -27,3 +27,4 @@ _testmain.go
 *.cert
 *.key
 *.osm
+*.db
