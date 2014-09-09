@@ -26,7 +26,7 @@ type Tag struct {
 
 type Ref struct {
 	XMLName xml.Name `xml:"nd"`
-	Ref string `xml:"ref,attr"`
+	Ref int64 `xml:"ref,attr"`
 }
 
 type Member struct {
@@ -39,7 +39,7 @@ type Member struct {
 
 type Way struct {
 	XMLName xml.Name `xml:"way"`
-	Id string `xml:"id,attr"`
+	Id int64 `xml:"id,attr"`
 	Tags []Tag `xml:"tag"`
 	Refs []Ref `xml:"nd"`
 }

@@ -47,7 +47,7 @@ func decode(decoder *xml.Decoder){
 					relations = append(relations, &relation)
 					//fmt.Println(relation)
 				}else {
-					fmt.Println(inElement)
+					//fmt.Println(inElement)
 				}
 		}
 
@@ -73,11 +73,12 @@ func main() {
 	
 	
 	decoder := xml.NewDecoder(xmlFile)
+	fmt.Println("Decoding file to memory...Please Wait.")
 	decode(decoder)
+	fmt.Println("Decode completed.")
 
-	fmt.Println("Nodes:    ", len(nodes))
+	write_ways(db, &ways)
 	write_nodes(db, &nodes)
-	fmt.Println("Ways:     ", len(ways))
 	fmt.Println("Relations:", len(relations))
 	
 }
