@@ -4,18 +4,18 @@ import (
 	"database/sql"
 	_ "github.com/cznic/ql/driver"
 	"encoding/xml"
+	"runtime"
+	"sync"
 	"fmt"
 	"os"
 )
 
+var workers sync.WaitGroup
 
 //result of the parse operation
 var bounds Bounds
-var nodes []*Node
-var ways []*Way
-var relations []*Relation
 
-func decode(decoder *xml.Decoder){
+func process(decoder *xml.Decoder, nodes *chan *Node, ways *chan *Way, relations *chan *Relation){
 	var inElement string
 	
 	for {
@@ -34,17 +34,16 @@ func decode(decoder *xml.Decoder){
 				}else if inElement == "node" {
 					var node Node
 					decoder.DecodeElement(&node, &se)
-					nodes = append(nodes, &node)
-					//fmt.Println(node)
+					*nodes <- &node
 				}else if inElement == "way" {
 					var way Way
 					decoder.DecodeElement(&way, &se)
-					ways = append(ways, &way)
+					*ways <- &way
 					//fmt.Println(way)
 				}else if inElement == "relation" {
 					var relation Relation
 					decoder.DecodeElement(&relation, &se)
-					relations = append(relations, &relation)
+					//relations = append(relations, &relation)
 					//fmt.Println(relation)
 				}else {
 					//fmt.Println(inElement)
@@ -55,7 +54,10 @@ func decode(decoder *xml.Decoder){
 }
 
 
+
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	
 	xmlFile, err := os.Open("input.osm")//DISABLE YOUR AV CUZ ITS A FUCKIN BIG FILE AND AVs LIKE TO SCAN FILES BEFORE IT LETS THEM OPEN!!!
 	if err != nil {
 		fmt.Println("Error opening file:", err)
@@ -72,13 +74,23 @@ func main() {
 	defer db.Close()
 	
 	
+	fmt.Print("Initializing ... ")
 	decoder := xml.NewDecoder(xmlFile)
-	fmt.Println("Decoding file to memory...Please Wait.")
-	decode(decoder)
-	fmt.Println("Decode completed.")
-
-	write_ways(db, &ways)
-	write_nodes(db, &nodes)
-	fmt.Println("Relations:", len(relations))
+	waysChan := make(chan *Way, 5000)
+	nodesChan := make(chan *Node, 5000)
+	relationsChan := make(chan *Relation, 5000)
+	fmt.Println("DONE.")
 	
+	fmt.Print("Launching DB workers ... ")
+	go db_worker(db, &nodesChan, &waysChan)
+	fmt.Println("DONE.")
+
+	fmt.Println("Processing started.")
+	process(decoder, &nodesChan, &waysChan, &relationsChan)
+	close(waysChan)
+	close(nodesChan)
+	close(relationsChan)
+	fmt.Println("Waiting for all db workers to complete.")
+	workers.Wait()
+	fmt.Println("Processing completed.")
 }

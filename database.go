@@ -1,6 +1,7 @@
 package main
 
 import "database/sql"
+import "time"
 import "fmt"
 
 var tableCreateCmd = `
@@ -74,65 +75,80 @@ func initialise_db(db *sql.DB) {
 }
 
 
-func write_nodes(db *sql.DB, nodeList *[]*Node){
+func db_worker(db *sql.DB, nodeIn *chan *Node, wayIn *chan *Way){
+	workers.Add(1)
+	defer workers.Done()
 	tx, err := db.Begin()
 	if err != nil {
 		panic(err)
 	}
 	
-	for x, node := range *nodeList {
-		if _, err = tx.Exec("INSERT INTO Nodes (NodeID,Lat,Lon,Changeset) VALUES ($1,$2,$3,$4)", node.Id, node.Lat, node.Lon, node.Changeset); err != nil {
-			panic(err)
+	nodes := *nodeIn
+	ways  := *wayIn
+	count := 0
+	for  {
+		select {
+			case node, ok := <- nodes:
+				if !ok{
+					nodes = nil
+				}else{
+					if _, err = tx.Exec("INSERT INTO Nodes (NodeID,Lat,Lon,Changeset) VALUES ($1,$2,$3,$4)", node.Id, node.Lat, node.Lon, node.Changeset); err != nil {
+						panic(err)
+					}
+					
+					for _, tag := range node.Tags{
+						if _, err = tx.Exec("INSERT INTO NodeTags (NodeID,Key,Value) VALUES ($1,$2,$3)", node.Id, tag.K, tag.V); err != nil {
+							panic(err)
+						}
+					}
+				}
+				
+				
+			case way, ok := <- ways:
+				if !ok{
+					ways = nil
+				}else{
+					if _, err = tx.Exec("INSERT INTO Ways (WayID) VALUES ($1)", way.Id); err != nil {
+						panic(err)
+					}
+					
+					for _, tag := range way.Tags{
+						if _, err = tx.Exec("INSERT INTO WayTags (WayID,Key,Value) VALUES ($1,$2,$3)", way.Id, tag.K, tag.V); err != nil {
+							panic(err)
+						}
+					}
+					
+					for _, ref := range way.Refs{
+						if _, err = tx.Exec("INSERT INTO WayRefs (WayID,RefID) VALUES ($1,$2)", way.Id, ref.Ref); err != nil {
+							panic(err)
+						}
+					}
+				}
 		}
-		
-		for _, tag := range node.Tags{
-			if _, err = tx.Exec("INSERT INTO NodeTags (NodeID,Key,Value) VALUES ($1,$2,$3)", node.Id, tag.K, tag.V); err != nil {
+
+		if ways==nil && nodes==nil{ break }
+
+		count++
+		if (count%1000) == 0{
+			fmt.Print(count, " entries processed. Intermission commit in progress ... ")
+			if err = tx.Commit(); err != nil {
 				panic(err)
 			}
-		}
-		
-		if ((x % 10000) == 0) && (x > 1000){
-			fmt.Println("Written", x, "/", len(*nodeList), "Nodes to DB (", int(float64(x)/float64(len(*nodeList))*100.0), "percent", ")")
+			if (count%20000) == 0{
+				fmt.Println("Pause.")
+				time.Sleep(time.Second * 2)
+			}
+			tx, err = db.Begin()
+			if err != nil {
+				panic(err)
+			}
+			fmt.Println("DONE.")
 		}
 	}
 	
+	fmt.Println("Now finalizing commit.")
 	if err = tx.Commit(); err != nil {
 		panic(err)
 	}
+	fmt.Println("All entries committed to db.")
 }
-
-
-
-func write_ways(db *sql.DB, wayList *[]*Way){
-	tx, err := db.Begin()
-	if err != nil {
-		panic(err)
-	}
-	
-	for x, way := range *wayList {
-		if _, err = tx.Exec("INSERT INTO Ways (WayID) VALUES ($1)", way.Id); err != nil {
-			panic(err)
-		}
-		
-		for _, tag := range way.Tags{
-			if _, err = tx.Exec("INSERT INTO WayTags (WayID,Key,Value) VALUES ($1,$2,$3)", way.Id, tag.K, tag.V); err != nil {
-				panic(err)
-			}
-		}
-		
-		for _, ref := range way.Refs{
-			if _, err = tx.Exec("INSERT INTO WayRefs (WayID,RefID) VALUES ($1,$2)", way.Id, ref.Ref); err != nil {
-				panic(err)
-			}
-		}
-		
-		if ((x % 1000) == 0) && (x > 100){
-			fmt.Println("Written", x, "/", len(*wayList), "Ways to DB (", int(float64(x)/float64(len(*wayList))*100.0), "percent", ")")
-		}
-	}
-	
-	if err = tx.Commit(); err != nil {
-		panic(err)
-	}
-}
-
