@@ -55,6 +55,36 @@ var tableCreateCmd = `
 	CREATE INDEX IF NOT EXISTS WayRefsWayID ON WayRefs (WayID);
 	CREATE INDEX IF NOT EXISTS WayRefsRefID ON WayRefs (RefID);
 	
+	
+	
+	
+	
+	
+	
+	CREATE TABLE IF NOT EXISTS Relations
+	(
+		RelationID int64,
+		Changeset int64
+	);
+	CREATE INDEX IF NOT EXISTS RelationsID ON Relations (RelationID);
+	
+	CREATE TABLE IF NOT EXISTS RelationTags
+	(
+		RelationID int64,
+		Key string,
+		Value string
+	);
+	CREATE INDEX IF NOT EXISTS RelationsID ON RelationTags (RelationID);
+	
+	CREATE TABLE IF NOT EXISTS RelationMembers
+	(
+		RelationID int64,
+		Ref int64,
+		Type string,
+		Role string
+	);
+	CREATE INDEX IF NOT EXISTS RelationMembersID ON RelationMembers (RelationID);
+	CREATE INDEX IF NOT EXISTS RelationMembersRef ON RelationMembers (Ref);
 `
 
 
@@ -75,7 +105,7 @@ func initialise_db(db *sql.DB) {
 }
 
 
-func db_worker(db *sql.DB, nodeIn *chan *Node, wayIn *chan *Way){
+func db_worker(db *sql.DB, nodeIn *chan *Node, wayIn *chan *Way, relationsIn *chan *Relation){
 	workers.Add(1)
 	defer workers.Done()
 	tx, err := db.Begin()
@@ -85,6 +115,7 @@ func db_worker(db *sql.DB, nodeIn *chan *Node, wayIn *chan *Way){
 	
 	nodes := *nodeIn
 	ways  := *wayIn
+	relations  := *relationsIn
 	count := 0
 	for  {
 		select {
@@ -124,9 +155,31 @@ func db_worker(db *sql.DB, nodeIn *chan *Node, wayIn *chan *Way){
 						}
 					}
 				}
+				
+				
+			case relation, ok := <- relations:
+				if !ok{
+					relations = nil
+				}else{
+					if _, err = tx.Exec("INSERT INTO Relations (RelationID, Changeset) VALUES ($1,$2)", relation.Id, relation.Changeset); err != nil {
+						panic(err)
+					}
+					
+					for _, tag := range relation.Tags{
+						if _, err = tx.Exec("INSERT INTO RelationTags (RelationID,Key,Value) VALUES ($1,$2,$3)", relation.Id, tag.K, tag.V); err != nil {
+							panic(err)
+						}
+					}
+					
+					for _, ref := range relation.Members{
+						if _, err = tx.Exec("INSERT INTO RelationMembers (RelationID,Ref,Type,Role) VALUES ($1,$2,$3,$4)", relation.Id, ref.Ref, ref.Type, ref.Role); err != nil {
+							panic(err)
+						}
+					}
+				}
 		}
 
-		if ways==nil && nodes==nil{ break }
+		if ways==nil && nodes==nil && relations==nil{ break }
 
 		count++
 		if (count%1000) == 0{

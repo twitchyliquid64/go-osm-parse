@@ -57,6 +57,7 @@ func process(decoder *xml.Decoder, nodes *chan *Node, ways *chan *Way, relations
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
+	fmt.Println(" ~===== OSM parser version 0.9 Alpha =====~ ")
 	
 	xmlFile, err := os.Open("input.osm")//DISABLE YOUR AV CUZ ITS A FUCKIN BIG FILE AND AVs LIKE TO SCAN FILES BEFORE IT LETS THEM OPEN!!!
 	if err != nil {
@@ -82,7 +83,7 @@ func main() {
 	fmt.Println("DONE.")
 	
 	fmt.Print("Launching DB workers ... ")
-	go db_worker(db, &nodesChan, &waysChan)
+	go db_worker(db, &nodesChan, &waysChan, &relationsChan)
 	fmt.Println("DONE.")
 
 	fmt.Println("Processing started.")
@@ -92,5 +93,5 @@ func main() {
 	close(relationsChan)
 	fmt.Println("Waiting for all db workers to complete.")
 	workers.Wait()
-	fmt.Println("Processing completed.")
+	fmt.Println("Processing completed, flushing disk caches.")
 }
