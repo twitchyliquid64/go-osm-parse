@@ -190,9 +190,14 @@ func db_worker(db *sql.DB, nodeIn *chan *Node, wayIn *chan *Way, relationsIn *ch
 			if err = tx.Commit(); err != nil {
 				panic(err)
 			}
-			if (count%60000) == 0{
+			if (count%10000) == 0{
 				fmt.Println("Pause.")
 				
+				time.Sleep(time.Second * 2)
+			}
+			
+			if (count % 99000) == 0{
+				time.Sleep(time.Second * 5)
 				f, err := os.Create("memprofile")
 				if err != nil {
 					panic(err)
@@ -200,9 +205,8 @@ func db_worker(db *sql.DB, nodeIn *chan *Node, wayIn *chan *Way, relationsIn *ch
 				pprof.WriteHeapProfile(f)
 				f.Close()
 				panic("Abort.")
-				
-				time.Sleep(time.Second * 2)
 			}
+			
 			tx, err = db.Begin()
 			if err != nil {
 				panic(err)
