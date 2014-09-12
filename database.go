@@ -4,8 +4,7 @@ import "database/sql"
 import "time"
 import "fmt"
 
-import "os"
-import "runtime/pprof"
+import "runtime"
 
 var tableCreateCmd = `
 	CREATE TABLE IF NOT EXISTS Nodes
@@ -190,22 +189,13 @@ func db_worker(db *sql.DB, nodeIn *chan *Node, wayIn *chan *Way, relationsIn *ch
 			if err = tx.Commit(); err != nil {
 				panic(err)
 			}
-			if (count%10000) == 0{
+			
+			if (count%15000) == 0{
 				fmt.Println("Pause.")
-				
+				runtime.GC()
 				time.Sleep(time.Second * 2)
 			}
 			
-			if (count % 99000) == 0{
-				time.Sleep(time.Second * 5)
-				f, err := os.Create("memprofile")
-				if err != nil {
-					panic(err)
-				}	
-				pprof.WriteHeapProfile(f)
-				f.Close()
-				panic("Abort.")
-			}
 			
 			tx, err = db.Begin()
 			if err != nil {
