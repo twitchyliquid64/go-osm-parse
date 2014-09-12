@@ -43,7 +43,7 @@ func process(decoder *xml.Decoder, nodes *chan *Node, ways *chan *Way, relations
 				}else if inElement == "relation" {
 					var relation Relation
 					decoder.DecodeElement(&relation, &se)
-					//relations = append(relations, &relation)
+					*relations <- &relation
 					//fmt.Println(relation)
 				}else {
 					//fmt.Println(inElement)

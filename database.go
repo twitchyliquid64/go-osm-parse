@@ -190,8 +190,8 @@ func db_worker(db *sql.DB, nodeIn *chan *Node, wayIn *chan *Way, relationsIn *ch
 				panic(err)
 			}
 			
-			if (count%15000) == 0{
-				fmt.Println("Pause.")
+			if (count%10000) == 0{
+				fmt.Print("Pause. ")
 				runtime.GC()
 				time.Sleep(time.Second * 2)
 			}
