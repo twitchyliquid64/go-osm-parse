@@ -32,7 +32,7 @@ type Ref struct {
 type Member struct {
 	XMLName xml.Name `xml:"member"`
 	Type string `xml:"type,attr"`
-	Ref string `xml:"ref,attr"`
+	Ref int64 `xml:"ref,attr"`
 	Role string `xml:"role,attr"`
 }
 
@@ -56,8 +56,8 @@ type Node struct {
 
 type Relation struct {
 	XMLName xml.Name `xml:"relation"`
-	Id string `xml:"id,attr"`
-	Changeset string `xml:"changeset,attr"`
+	Id int64 `xml:"id,attr"`
+	Changeset int64 `xml:"changeset,attr"`
 	Tags []Tag `xml:"tag"`
 	Members []Member `xml:"member"`
 }
